@@ -62,9 +62,9 @@ songplay_table_create = ("""
 CREATE TABLE songplays(
     songplay_id int IDENTITY(0,1) PRIMARY KEY, 
     start_time timestamp REFERENCES time SORTKEY, 
-    user_id varchar REFERENCES users DISTKEY, 
+    user_id varchar REFERENCES users, 
     level varchar NOT NULL, 
-    song_id varchar REFERENCES songs, 
+    song_id varchar REFERENCES songs DISTKEY, 
     artist_id varchar REFERENCES artists, 
     session_id int NOT NULL, 
     location varchar, 
@@ -73,21 +73,21 @@ CREATE TABLE songplays(
 
 user_table_create = ("""
 CREATE TABLE users(
-    user_id varchar PRIMARY KEY DISTKEY SORTKEY, 
+    user_id varchar PRIMARY KEY SORTKEY, 
     first_name varchar NOT NULL, 
     last_name varchar NOT NULL, 
     gender varchar(1) NOT NULL, 
     level varchar NOT NULL)
+    DISTSTYLE all;
 """)
 
 song_table_create = ("""
 CREATE TABLE songs(
-    song_id varchar PRIMARY KEY SORTKEY, 
+    song_id varchar PRIMARY KEY DISTKEY, 
     title varchar NOT NULL, 
     artist_id varchar NOT NULL REFERENCES artists, 
     year smallint NOT NULL, 
     duration decimal NOT NULL)
-    DISTSTYLE all;
 """)
 
 artist_table_create = ("""
