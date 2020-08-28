@@ -25,48 +25,6 @@ redshift = boto3.client('redshift',
                         region_name = "us-west-2",
                         aws_access_key_id = KEY,
                         aws_secret_access_key = SECRET)
-"""
-# create client for IAM
-iam = boto3.client('iam',
-                   region_name = "us-west-2",
-                   aws_access_key_id = KEY,
-                   aws_secret_access_key = SECRET)
-
-def create_iam_role():
-    
-    try:
-        # create the IAM role
-        iamRole = iam.create_role(
-            Path='/',
-            RoleName = ROLE_NAME,
-            AssumeRolePolicyDocument=json.dumps(
-                {
-                    'Statement': [{'Action': 'sts:AssumeRole',
-                                   'Effect': 'Allow',
-                                   'Principal': {'Service': 'redshift.amazonaws.com'}}],
-                    'Version': '2012-10-17'
-                }))
-    except iam.exceptions.EntityAlreadyExistsException:
-        # if the IAM role exists, return its ARN
-        print("IAM role already exists!")
-        arn = iam.get_role(RoleName=ROLE_NAME)['Role']['Arn']
-    except ... as e:
-        print(e)
-        arn = None
-    else:
-        print("Created IAM role!")
-
-        # attach policy
-        iam.attach_role_policy(RoleName=ROLE_NAME,
-        PolicyArn="arn:aws:iam::aws:policy/AmazonS3ReadONlyAccess")['ResponseMetadata']['HTTPStatusCode']
-        
-        arn = iam.get_role(RoleName=ROLE_NAME)['Role']['Arn']
-    
-    config.set('IAM_ROLE', 'ARN', arn)
-    # return the IAM role ARN
-    return arn
-    
-"""
 
 def create_cluster():
     try:
@@ -85,13 +43,8 @@ def create_cluster():
         )
         
     except Exception as e:
-        if e.response['Error']['Code'] == 'ClusterAlreadyExists':
-            print(CLUSTER_IDENTIFIER + " already exists!")
-                
-        else:
+        if e.response['Error']['Code'] != 'ClusterAlreadyExists':
             print(e)
-    else:
-        print("Created cluster!")
         
     set_security_group(redshift.describe_clusters(ClusterIdentifier=CLUSTER_IDENTIFIER)['Clusters'][0]['VpcId'])
     endpoint = get_endpoint()
@@ -101,7 +54,6 @@ def create_cluster():
 def get_endpoint():
     try:
         while(redshift.describe_clusters(ClusterIdentifier=CLUSTER_IDENTIFIER)['Clusters'][0]["ClusterStatus"] == "creating"):
-            print("creating")
             sleep(30)   
 
         if redshift.describe_clusters(ClusterIdentifier=CLUSTER_IDENTIFIER)['Clusters'][0]["ClusterStatus"] == "available":
@@ -130,20 +82,17 @@ def set_security_group(vpc_id):
             ToPort=int(DB_PORT)
         )
     except Exception as e:
-        if e.response['Error']['Code'] == 'InvalidPermission.Duplicate':
-            pass
-        else:
+        if e.response['Error']['Code'] != 'InvalidPermission.Duplicate':
             print(e)
 
 def delete_cluster():
-    redshift.delete_cluster(ClusterIdentifier=CLUSTER_IDENTIFIER, 
-                            SkipFinalClusterSnapshot=True)
-    
     try:
+        redshift.delete_cluster(ClusterIdentifier=CLUSTER_IDENTIFIER, 
+                            SkipFinalClusterSnapshot=True)
         while(redshift.describe_clusters(ClusterIdentifier=CLUSTER_IDENTIFIER)['Clusters'][0]["ClusterStatus"] == "deleting"):
-            print("deleting")
             sleep(30)
     except Exception as e:
         if e.response['Error']['Code'] == 'ClusterNotFoundFault':
-            print("Deleted cluster!")
+            pass
+        
 
