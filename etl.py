@@ -6,14 +6,12 @@ from iac import get_endpoint
 
 def load_staging_tables(cur, conn):
     for query in copy_table_queries:
-        print(query)
         cur.execute(query)
         conn.commit()
 
 
 def insert_tables(cur, conn):
     for query in insert_table_queries:
-        print(query)
         cur.execute(query)
         conn.commit()
 
@@ -24,7 +22,6 @@ def main():
     
     host = get_endpoint()
     conn_string = "host={} dbname={} user={} password={} port={}".format(host, *config['CLUSTER'].values())
-    print(conn_string)
     
     try:
         conn = psycopg2.connect(conn_string)
