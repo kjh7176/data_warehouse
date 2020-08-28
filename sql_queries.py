@@ -12,109 +12,126 @@ IAM_ROLE = config.get('IAM_ROLE', 'ARN')
 
 # DROP TABLES
 
-staging_events_table_drop = "DROP TABLE IF EXISTS staging_events;"
-staging_songs_table_drop = "DROP TABLE IF EXISTS staging_songs;"
-songplay_table_drop = "DROP TABLE IF EXISTS songplays;"
-user_table_drop = "DROP TABLE IF EXISTS users;"
-song_table_drop = "DROP TABLE IF EXISTS songs;"
-artist_table_drop = "DROP TABLE IF EXISTS artists;"
-time_table_drop = "DROP TABLE IF EXISTS time;"
+staging_events_table_drop = "DROP TABLE IF EXISTS dist.staging_events;"
+staging_songs_table_drop  = "DROP TABLE IF EXISTS dist.staging_songs;"
+songplay_table_drop       = "DROP TABLE IF EXISTS dist.songplays;"
+user_table_drop           = "DROP TABLE IF EXISTS dist.users;"
+song_table_drop           = "DROP TABLE IF EXISTS dist.songs;"
+artist_table_drop         = "DROP TABLE IF EXISTS dist.artists;"
+time_table_drop           = "DROP TABLE IF EXISTS dist.time;"
 
 # CREATE TABLES
+schema_create = "CREATE SCHEMA IF NOT EXISTS dist;"
 
 staging_events_table_create= ("""
+SET search_path TO dist;
+
 CREATE TABLE staging_events (
-    artist varchar,
-    auth varchar,
-    firstName varchar,
-    gender varchar(1),
+    artist        varchar,
+    auth          varchar,
+    firstName     varchar,
+    gender        varchar(1),
     itemInSession int,
-    lastName varchar,
-    length decimal,
-    level varchar,
-    location varchar,
-    method varchar,
-    page varchar,
-    registration decimal,
-    sessionId int,
-    song varchar,
-    status int,
-    ts bigint,
-    userAgent varchar,
-    userId int)
+    lastName      varchar,
+    length        decimal,
+    level         varchar,
+    location      varchar,
+    method        varchar,
+    page          varchar,
+    registration  decimal,
+    sessionId     int,
+    song          varchar,
+    status        int,
+    ts            bigint,
+    userAgent     varchar,
+    userId        int)
 """)
 
 staging_songs_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE staging_songs (
-    artist_id varchar, 
-    artist_latitude decimal, 
-    artist_location varchar, 
+    artist_id        varchar, 
+    artist_latitude  decimal, 
+    artist_location  varchar, 
     artist_longitude decimal, 
-    artist_name varchar, 
-    duration decimal, 
-    num_songs int, 
-    song_id varchar, 
-    title varchar, 
-    year smallint)
+    artist_name      varchar, 
+    duration         decimal, 
+    num_songs        int, 
+    song_id          varchar, 
+    title            varchar, 
+    year             smallint)
 """)
 
 songplay_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE songplays(
-    songplay_id int IDENTITY(0,1) PRIMARY KEY, 
-    start_time timestamp REFERENCES time SORTKEY, 
-    user_id varchar REFERENCES users, 
-    level varchar NOT NULL, 
-    song_id varchar REFERENCES songs DISTKEY, 
-    artist_id varchar REFERENCES artists, 
-    session_id int NOT NULL, 
-    location varchar, 
-    user_agent varchar)
+    songplay_id int       IDENTITY(0,1)       PRIMARY KEY, 
+    start_time  timestamp REFERENCES time     SORTKEY, 
+    user_id     int       REFERENCES users, 
+    level       varchar   NOT NULL, 
+    song_id     varchar   REFERENCES songs    DISTKEY, 
+    artist_id   varchar   REFERENCES artists, 
+    session_id  int       NOT NULL, 
+    location    varchar, 
+    user_agent  varchar)
 """)
 
 user_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE users(
-    user_id varchar PRIMARY KEY SORTKEY, 
-    first_name varchar NOT NULL, 
-    last_name varchar NOT NULL, 
-    gender varchar(1) NOT NULL, 
-    level varchar NOT NULL)
+    user_id    varchar    PRIMARY KEY SORTKEY, 
+    first_name varchar    NOT NULL, 
+    last_name  varchar    NOT NULL, 
+    gender     varchar(1) NOT NULL, 
+    level      varchar    NOT NULL)
     DISTSTYLE all;
 """)
 
 song_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE songs(
-    song_id varchar PRIMARY KEY DISTKEY, 
-    title varchar NOT NULL, 
-    artist_id varchar NOT NULL REFERENCES artists, 
-    year smallint NOT NULL, 
-    duration decimal NOT NULL)
+    song_id   varchar  PRIMARY KEY DISTKEY, 
+    title     varchar  NOT NULL, 
+    artist_id varchar  NOT NULL REFERENCES artists, 
+    year      smallint NOT NULL, 
+    duration  decimal  NOT NULL)
 """)
 
 artist_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE artists(
     artist_id varchar PRIMARY KEY SORTKEY, 
-    name varchar NOT NULL, 
-    location varchar, 
-    latitude decimal, 
+    name      varchar NOT NULL, 
+    location  varchar, 
+    latitude  decimal, 
     longitude decimal)
     DISTSTYLE all;
 """)
 
 time_table_create = ("""
+SET search_path TO dist;
+
 CREATE TABLE time(
     start_time timestamp PRIMARY KEY SORTKEY, 
-    hour smallint, 
-    day smallint, 
+    hour       smallint, 
+    day        smallint, 
     weekofyear smallint, 
-    month smallint, 
-    year smallint, 
-    weekday smallint)
+    month      smallint, 
+    year       smallint, 
+    weekday    smallint)
     DISTSTYLE all;
 """)
 
 # STAGING TABLES
 
 staging_events_copy = ("""
+SET search_path TO dist;
+
 COPY staging_events FROM {}
 iam_role '{}'
 JSON {}
@@ -122,6 +139,8 @@ region 'us-west-2'
 """).format(LOG_DATA, IAM_ROLE, LOG_JSONPATH)
 
 staging_songs_copy = ("""
+SET search_path TO dist;
+
 COPY staging_songs FROM {}
 iam_role '{}'
 json 'auto'
@@ -130,6 +149,8 @@ region 'us-west-2'
 
 # FINAL TABLES
 songplay_table_insert = ("""
+SET search_path TO dist;
+
 INSERT INTO songplays (start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
 SELECT DISTINCT TIMESTAMP 'epoch' + se.ts/1000 *INTERVAL '1 second' start_time,
     se.userId, se.level, s.song_id, s.artist_id, se.sessionId, se.location, se.userAgent
@@ -140,25 +161,45 @@ WHERE se.page='NextSong'
 """)
 
 user_table_insert = ("""
+SET search_path TO dist;
+
 INSERT INTO users
-SELECT DISTINCT userId, firstName, lastName, gender, level
-FROM staging_events
-WHERE page='NextSong';
+SELECT t.userId, t.firstName, t.lastName, t.gender, se.level
+FROM staging_events se
+JOIN
+    (SELECT userId, firstName, lastName, gender, MAX(ts) max_ts
+    FROM staging_events
+    WHERE page='NextSong'
+    GROUP BY userId, firstName, lastName, gender) t
+ON se.userId = t.userId and se.firstName = t.firstName and se.lastName = t.lastName 
+AND se.gender = t.gender and se.ts = t.max_Ts;
 """)
 
 song_table_insert = ("""
+SET search_path TO dist;
+
 INSERT INTO songs
 SELECT DISTINCT song_id, title, artist_id, year, duration
 FROM staging_songs;
 """)
 
 artist_table_insert = ("""
+SET search_path TO dist;
+
 INSERT INTO artists
-SELECT DISTINCT artist_id, artist_name, artist_location, artist_latitude, artist_longitude
-FROM staging_songs;
+SELECT t.artist_id, ss.artist_name, ss.artist_location, ss.artist_latitude
+FROM staging_songs ss
+JOIN
+    (SELECT artist_id, MIN(song_id) song_id
+    FROM staging_songs
+    GROUP BY artist_id) t
+ON ss.artist_id = t.artist_id
+AND ss.song_id = t.song_id;
 """)
 
 time_table_insert = ("""
+SET search_path TO dist;
+
 INSERT INTO time
 SELECT DISTINCT TIMESTAMP 'epoch' + ts/1000 *INTERVAL '1 second' start_time,
     EXTRACT(hour from start_time),
@@ -172,7 +213,8 @@ WHERE page='NextSong';
 """)
 # QUERY LISTS
 
-create_table_queries = [staging_events_table_create, staging_songs_table_create, user_table_create, artist_table_create, song_table_create, time_table_create, songplay_table_create]
+create_table_queries = [schema_create, staging_events_table_create, staging_songs_table_create, user_table_create, artist_table_create, song_table_create, time_table_create, songplay_table_create]
+
 drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
 
 copy_table_queries = [staging_events_copy, staging_songs_copy]
