@@ -8,7 +8,7 @@ The analytics team is particularly interested in understanding what songs users 
 Currently, they don't have an easy way to query their data, which resides in a directory of JSON logs on user activity on the app, as well as a directory with JSON metadata on the songs in their app.  
 
 ## File Description
-- `create_tables.py` creates a cluster if not exists, drops and creates fac and dimension tables for the star schema in Redshift. You run this file to reset your tabels before each time you run your ETL scripts.
+- `create_tables.py` creates a cluster if not exists, drops and creates fact and dimension tables for the star schema in Redshift. You run this file to reset your tabels before each time you run your ETL scripts.
 - `etl.py` loads data from S3 into staging tables on Redshift and then process that data into analytics tables on Redshift.
 - `data_quality_check.ipynb` checks data insertions and uniqueness of primary key in each table.
 - `analysis.ipynb` executes some analytic queries on tables and measure the improvement of distribution style.
@@ -79,7 +79,7 @@ $ python etl.py
  4. Confirm  
    Open `data_quality_check.ipynb` and `analysis.ipynb` in order to test.
 
-## Example Analytics
+## Analytics 
 #### 1. Display a play list of the specific user in the latest played order.
 <table>
     <tr>
@@ -268,7 +268,7 @@ $ python etl.py
 </table>
 
 
-## Example Data
+## Examples of Data in Tables
 > Query  
 ```
 SELECT * FROM songplays LIMIT 5;
