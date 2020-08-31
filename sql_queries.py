@@ -73,10 +73,10 @@ CREATE TABLE songplays(
     songplay_id int       IDENTITY(0,1)       PRIMARY KEY, 
     start_time  timestamp REFERENCES time     SORTKEY, 
     user_id     int       REFERENCES users, 
-    level       varchar   NOT NULL, 
+    level       varchar,   
     song_id     varchar   REFERENCES songs    DISTKEY, 
     artist_id   varchar   REFERENCES artists, 
-    session_id  int       NOT NULL, 
+    session_id  int,       
     location    varchar, 
     user_agent  varchar)
 """)
@@ -91,10 +91,10 @@ SET search_path TO dist;
 
 CREATE TABLE users(
     user_id    int    PRIMARY KEY SORTKEY, 
-    first_name varchar    NOT NULL, 
-    last_name  varchar    NOT NULL, 
-    gender     varchar(1) NOT NULL, 
-    level      varchar    NOT NULL)
+    first_name varchar, 
+    last_name  varchar, 
+    gender     varchar(1), 
+    level      varchar)
     DISTSTYLE all;
 """)
 
@@ -108,10 +108,10 @@ SET search_path TO dist;
 
 CREATE TABLE songs(
     song_id   varchar  PRIMARY KEY DISTKEY, 
-    title     varchar  NOT NULL, 
-    artist_id varchar  NOT NULL REFERENCES artists, 
-    year      smallint NOT NULL, 
-    duration  decimal  NOT NULL)
+    title     varchar  , 
+    artist_id varchar  , 
+    year      smallint , 
+    duration  decimal  )
 """)
 
 ## ARTISTS TABLE
@@ -124,7 +124,7 @@ SET search_path TO dist;
 
 CREATE TABLE artists(
     artist_id varchar PRIMARY KEY SORTKEY, 
-    name      varchar NOT NULL, 
+    name      varchar, 
     location  varchar, 
     latitude  decimal, 
     longitude decimal)
@@ -195,7 +195,7 @@ user_table_insert = ("""
 SET search_path TO dist;
 
 INSERT INTO users
-SELECT t.userId, t.firstName, t.lastName, t.gender, se.level
+SELECT DISTINCT t.userId, t.firstName, t.lastName, t.gender, se.level
 FROM staging_events se
 JOIN
     (SELECT userId, firstName, lastName, gender, MAX(ts) max_ts
@@ -220,7 +220,7 @@ artist_table_insert = ("""
 SET search_path TO dist;
 
 INSERT INTO artists
-SELECT t.artist_id, ss.artist_name, ss.artist_location, ss.artist_latitude
+SELECT DISTINCT t.artist_id, ss.artist_name, ss.artist_location, ss.artist_latitude
 FROM staging_songs ss
 JOIN
     (SELECT artist_id, MIN(song_id) song_id
