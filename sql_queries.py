@@ -11,14 +11,8 @@ SONG_DATA = config.get('S3','SONG_DATA')
 IAM_ROLE = config.get('IAM_ROLE', 'ARN')
 
 # DROP TABLES
-
-staging_events_table_drop = "DROP TABLE IF EXISTS dist.staging_events;"
-staging_songs_table_drop  = "DROP TABLE IF EXISTS dist.staging_songs;"
-songplay_table_drop       = "DROP TABLE IF EXISTS dist.songplays;"
-user_table_drop           = "DROP TABLE IF EXISTS dist.users;"
-song_table_drop           = "DROP TABLE IF EXISTS dist.songs;"
-artist_table_drop         = "DROP TABLE IF EXISTS dist.artists;"
-time_table_drop           = "DROP TABLE IF EXISTS dist.time;"
+nodist_schema_table_drop = "DROP SCHEMA IF EXISTS nodist CASCADE;"
+dist_schema_table_drop  = "DROP SCHEMA IF EXISTS dist CASCADE;"
 
 # CREATE TABLES
 schema_create = "CREATE SCHEMA IF NOT EXISTS dist;"
@@ -63,6 +57,15 @@ CREATE TABLE staging_songs (
     year             smallint)
 """)
 
+## SONGPLAYS TABLE
+
+## SORTKEY : start_time
+## REASON : When loading user's play list,
+## it's likely to be queried in the order of descending 'start_time'.
+
+## DISTKEY : song_id
+## REASON : The 'song_id' column has the highest cardinality among foreign keys.
+
 songplay_table_create = ("""
 SET search_path TO dist;
 
@@ -78,6 +81,11 @@ CREATE TABLE songplays(
     user_agent  varchar)
 """)
 
+## USERS TABLE
+
+## DISTSTYLE : all
+## REASON : Table size is small.
+
 user_table_create = ("""
 SET search_path TO dist;
 
@@ -90,6 +98,11 @@ CREATE TABLE users(
     DISTSTYLE all;
 """)
 
+## SONGS TABLE
+
+## DISTSTYPE : key
+## REASON : 'song_id' column is DISTKEY.
+
 song_table_create = ("""
 SET search_path TO dist;
 
@@ -100,6 +113,11 @@ CREATE TABLE songs(
     year      smallint NOT NULL, 
     duration  decimal  NOT NULL)
 """)
+
+## ARTISTS TABLE
+
+## DISTSTYLE : all
+## REASON : Table size is small.
 
 artist_table_create = ("""
 SET search_path TO dist;
@@ -112,6 +130,11 @@ CREATE TABLE artists(
     longitude decimal)
     DISTSTYLE all;
 """)
+
+## TIME TABLE
+
+## DISTSTYLE : all
+## REASON : Table size is small.
 
 time_table_create = ("""
 SET search_path TO dist;
@@ -147,19 +170,27 @@ json 'auto'
 region 'us-west-2'
 """).format(SONG_DATA, IAM_ROLE)
 
-# FINAL TABLES
+# INSERT QUERIES
+
+## Converts 'ts' column's data type bigint into timestamp.
+## 'song_id' and 'artist_id' are coming from songs table
+## matching by artist name, song title and song length.
 songplay_table_insert = ("""
 SET search_path TO dist;
 
 INSERT INTO songplays (start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
+ 
 SELECT DISTINCT TIMESTAMP 'epoch' + se.ts/1000 *INTERVAL '1 second' start_time,
-    se.userId, se.level, s.song_id, s.artist_id, se.sessionId, se.location, se.userAgent
+    se.userId, se.level, s.song_id, s.artist_id, 
+    se.sessionId, se.location, se.userAgent
 FROM staging_events se
 JOIN artists a ON a.name = se.artist
 JOIN songs s ON s.title = se.song and s.duration = se.length
 WHERE se.page='NextSong'
 """)
 
+## Inserts data into users with user's most recent level
+## where page is 'NextSong'.
 user_table_insert = ("""
 SET search_path TO dist;
 
@@ -175,6 +206,7 @@ ON se.userId = t.userId and se.firstName = t.firstName and se.lastName = t.lastN
 AND se.gender = t.gender and se.ts = t.max_Ts;
 """)
 
+## Inserts data into songs with distinct values.
 song_table_insert = ("""
 SET search_path TO dist;
 
@@ -183,6 +215,7 @@ SELECT DISTINCT song_id, title, artist_id, year, duration
 FROM staging_songs;
 """)
 
+## Inserts data into artists with their original name.
 artist_table_insert = ("""
 SET search_path TO dist;
 
@@ -197,6 +230,8 @@ ON ss.artist_id = t.artist_id
 AND ss.song_id = t.song_id;
 """)
 
+# Converts 'ts' column's data type bigint into timestamp
+# and insert data into time where page is 'NextSong'.
 time_table_insert = ("""
 SET search_path TO dist;
 
@@ -211,11 +246,12 @@ SELECT DISTINCT TIMESTAMP 'epoch' + ts/1000 *INTERVAL '1 second' start_time,
 FROM staging_events
 WHERE page='NextSong';
 """)
+
 # QUERY LISTS
 
 create_table_queries = [schema_create, staging_events_table_create, staging_songs_table_create, user_table_create, artist_table_create, song_table_create, time_table_create, songplay_table_create]
 
-drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
+drop_table_queries = [nodist_schema_table_drop, dist_schema_table_drop]
 
 copy_table_queries = [staging_events_copy, staging_songs_copy]
 
