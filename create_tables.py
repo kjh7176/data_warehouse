@@ -5,6 +5,13 @@ from sql_queries import create_table_queries, drop_table_queries
 
 
 def drop_tables(cur, conn):
+    """
+    Drops tables if exist.
+    
+    Params:
+    - cur: cursor for db connection to execute queries
+    - conn: object for db connection 
+    """
     for query in drop_table_queries:
         try:
             cur.execute(query)
@@ -15,6 +22,13 @@ def drop_tables(cur, conn):
 
 
 def create_tables(cur, conn):
+    """
+    Create staging tables and analytics tables.
+    
+    Params:
+    - cur: cursor for db connection to execute queries
+    - conn: object for db connection 
+    """
     for query in create_table_queries:
         try:
             cur.execute(query)
@@ -26,6 +40,11 @@ def create_tables(cur, conn):
 
 
 def main():
+    """
+    Connects to the Redshift cluster.
+    Drops and creates tables to reset.
+    """
+    
     config = configparser.ConfigParser()
     config.read('dwh.cfg')
     
