@@ -90,7 +90,7 @@ user_table_create = ("""
 SET search_path TO dist;
 
 CREATE TABLE users(
-    user_id    varchar    PRIMARY KEY SORTKEY, 
+    user_id    int    PRIMARY KEY SORTKEY, 
     first_name varchar    NOT NULL, 
     last_name  varchar    NOT NULL, 
     gender     varchar(1) NOT NULL, 
